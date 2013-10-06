@@ -24,6 +24,7 @@
   <!-- We need this permission, when geolocalizing -->
   <!--uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission  android:name="android.permission.ACCESS_FINE_LOCATION"/-->
+  <uses-permission android:name="android.permission.BLUETOOTH"/>
 
   <application
     android:name=".IOIOGimbalApplication"
@@ -34,6 +35,11 @@
     android:allowBackup="false"
     android:hardwareAccelerated="true"
   >
+
+    <uses-library
+      android:name="com.android.future.usb.accessory"
+      android:required="false"
+    />
 
     <!-- This is required in order to have Google Maps work at runtime! -->
     <!--uses-library android:name="com.google.android.maps"/-->
@@ -49,11 +55,20 @@
     <activity
       android:name=".MainActivity"
       android:configChanges="orientation|keyboardHidden|screenLayout"
+      android:launchMode="singleTask"
     >
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
+      <intent-filter>
+        <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+      </intent-filter>
+      <meta-data
+        android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+        android:resource="@xml/accessory_filter"
+      />
+
     </activity>
 
     <activity
