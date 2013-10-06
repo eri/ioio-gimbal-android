@@ -22,7 +22,7 @@ local.properties
 .project
 
 # Intellij/Android Studio files
-.iml
+*.iml
 .idea/
 gen-external-apklibs/
 

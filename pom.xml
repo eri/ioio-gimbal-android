@@ -98,13 +98,19 @@
     </dependency>
     <dependency>
       <groupId>ioio</groupId>
-      <artifactId>library-android</artifactId>
+      <artifactId>lib-android</artifactId>
       <version>1.0</version>
       <type>apklib</type>
     </dependency>
     <dependency>
       <groupId>ioio</groupId>
-      <artifactId>libbluetooth</artifactId>
+      <artifactId>lib-bluetooth</artifactId>
+      <version>1.0</version>
+      <type>apklib</type>
+    </dependency>
+    <dependency>
+      <groupId>ioio</groupId>
+      <artifactId>lib-android-device</artifactId>
       <version>1.0</version>
       <type>apklib</type>
     </dependency>
