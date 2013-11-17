@@ -9,6 +9,7 @@
     android:text="SeekBar"
     />
 
+
   <SeekBar
     android:id="@+id/SeekBar"
     android:layout_height="wrap_content"
@@ -45,6 +46,10 @@
     android:textOff="Led is OFF"
     android:textOn="Led is ON"
     />
-  <ImageView android:layout_height="wrap_content" android:id="@+id/imageView1" android:layout_width="wrap_content"
-             android:src="@drawable/ioio_down"></ImageView>
+
+  <TextView
+    android:id="@+id/sensors"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    />
 </LinearLayout>
