@@ -5,9 +5,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.ToggleButton;
 import com.smartnsoft.droid4me.LifeCycle.BusinessObjectsRetrievalAsynchronousPolicyAnnotation;
 import com.smartnsoft.droid4me.app.SmartIOIOActivity;
 import ioio.lib.api.AnalogInput;
@@ -18,6 +16,7 @@ import ioio.lib.api.PwmOutput;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
+import java.text.DecimalFormat;
 import net.cylons.ioio.gimbal.app.IOIOGimbalActivityAggregate;
 
 /**
@@ -38,9 +37,9 @@ public final class MainActivity
 
     private AnalogInput analogInput;
 
-    private PwmOutput pwmOutputX;
+    private PwmOutput pitchServoOut;
 
-    private PwmOutput pwmOutputY;
+    private PwmOutput rollServoOut;
 
     private DigitalOutput led;
 
@@ -50,43 +49,65 @@ public final class MainActivity
     {
       led = ioio_.openDigitalOutput(IOIO.LED_PIN, true);
       analogInput = ioio_.openAnalogInput(40);
-      pwmOutputX = ioio_.openPwmOutput(new DigitalOutput.Spec(12, Mode.NORMAL), 100);
-      pwmOutputY = ioio_.openPwmOutput(new DigitalOutput.Spec(13, Mode.NORMAL), 100);
-      enableUi(true);
+      pitchServoOut = ioio_.openPwmOutput(new DigitalOutput.Spec(12, Mode.NORMAL), 100);
+      rollServoOut = ioio_.openPwmOutput(new DigitalOutput.Spec(13, Mode.NORMAL), 100);
     }
 
     @Override
     public void loop()
         throws ConnectionLostException, InterruptedException
     {
-      final float reading = analogInput.read();
-      setText(Float.toString(reading));
-      int digitalOut = 700 + seekBar.getProgress();
-      pwmOutputX.setPulseWidth(digitalOut);
-      pwmOutputY.setPulseWidth(digitalOut);
-      led.write(!toggleButton.isChecked());
+      final float normalizedPitchDegree = pitchDegree + 180f;
+      final float normalizedRollDegree = rollDegree + 180f + 90f;
+
+      final float pitchServoValue = (normalizedPitchDegree * MainActivity.SERVO_OUT_MAX_NORMALIZED / 360f) + MainActivity.SERVO_OUT_OFFSET;
+      final float rollServoValue = (normalizedRollDegree * MainActivity.SERVO_OUT_MAX_NORMALIZED / 360f) + MainActivity.SERVO_OUT_OFFSET;
+
+      pitchServoOut.setPulseWidth(pitchServoValue);
+      rollServoOut.setPulseWidth(rollServoValue);
+
+      getHandler().post(new Runnable()
+      {
+        @Override
+        public void run()
+        {
+          pitchTextView.setText(getString(R.string.degrees, decimalFormat.format(normalizedPitchDegree - 180f)));
+          rollTextView.setText(getString(R.string.degrees, decimalFormat.format(normalizedRollDegree - 180f)));
+        }
+      });
+
       Thread.sleep(10);
     }
 
     @Override
     public void disconnected()
     {
-      enableUi(false);
     }
   }
 
-  private TextView textView;
-  private TextView sensors;
+  private final static float SERVO_OUT_MAX_NORMALIZED = 1775f;
 
-  private SeekBar seekBar;
+  private final static float SERVO_OUT_OFFSET = 700f;
 
-  private ToggleButton toggleButton;
+  private TextView pitchTextView;
+
+  private TextView rollTextView;
 
   private SensorManager sensorManager;
+
+  private Sensor magneticFieldSensor;
+
+  private Sensor accelerometerSensor;
+
+  private DecimalFormat decimalFormat;
 
   private float[] gravityValues;
 
   private float[] magneticValues;
+
+  private float pitchDegree = 0f;
+
+  private float rollDegree = 0f;
 
   @Override
   protected IOIOLooper createIOIOLooper()
@@ -99,24 +120,23 @@ public final class MainActivity
   {
     super.onCreate(savedInstanceState);
     sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+    accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    magneticFieldSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
   }
 
   @Override
   public void onRetrieveBusinessObjects()
       throws BusinessObjectUnavailableException
   {
+    decimalFormat = new DecimalFormat("###.#");
   }
 
   @Override
   public void onRetrieveDisplayObjects()
   {
     setContentView(R.layout.main);
-    textView = (TextView) findViewById(R.id.TextView);
-    sensors = (TextView) findViewById(R.id.sensors);
-    seekBar = (SeekBar) findViewById(R.id.SeekBar);
-    seekBar.setMax(1775);
-    toggleButton = (ToggleButton) findViewById(R.id.ToggleButton);
-    enableUi(false);
+    pitchTextView = (TextView) findViewById(R.id.pitchTextView);
+    rollTextView = (TextView) findViewById(R.id.rollTextView);
   }
 
   @Override
@@ -134,15 +154,16 @@ public final class MainActivity
   @Override
   protected void onResume()
   {
-    sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_FASTEST);
-    sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_FASTEST);
+    sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
+    sensorManager.registerListener(this, magneticFieldSensor, SensorManager.SENSOR_DELAY_GAME);
     super.onResume();
   }
 
   @Override
   protected void onPause()
   {
-    sensorManager.unregisterListener(this);
+    sensorManager.unregisterListener(this, accelerometerSensor);
+    sensorManager.unregisterListener(this, magneticFieldSensor);
     super.onPause();
   }
 
@@ -164,16 +185,16 @@ public final class MainActivity
     if (gravityValues != null && magneticValues != null)
     {
       final float[] temp = new float[9];
-      final float[] R = new float[9];
-      //Load rotation matrix into R
+      final float[] rValue = new float[9];
+      //Load rotation matrix into rValue
       SensorManager.getRotationMatrix(temp, null, gravityValues, magneticValues);
 
       //Remap to camera's point-of-view
-      SensorManager.remapCoordinateSystem(temp, SensorManager.AXIS_X, SensorManager.AXIS_Z, R);
+      SensorManager.remapCoordinateSystem(temp, SensorManager.AXIS_X, SensorManager.AXIS_Z, rValue);
 
       //Return the orientation orientationValues
       final float[] orientationValues = new float[3];
-      SensorManager.getOrientation(R, orientationValues);
+      SensorManager.getOrientation(rValue, orientationValues);
 
       //Convert to degrees
       for (int i = 0; i < orientationValues.length; i++)
@@ -181,8 +202,8 @@ public final class MainActivity
         final Double degrees = (orientationValues[i] * 180) / Math.PI;
         orientationValues[i] = degrees.floatValue();
       }
-
-        sensors.setText("pitch=" + orientationValues[1] + " roll=" + orientationValues[2]);
+      pitchDegree = Math.round(orientationValues[1]);
+      rollDegree = Math.round(orientationValues[2]);
     }
   }
 
@@ -190,31 +211,6 @@ public final class MainActivity
   public void onAccuracyChanged(Sensor sensor, int i)
   {
 
-  }
-
-  private void enableUi(final boolean enable)
-  {
-    getHandler().post(new Runnable()
-    {
-      @Override
-      public void run()
-      {
-        seekBar.setEnabled(enable);
-        toggleButton.setEnabled(enable);
-      }
-    });
-  }
-
-  private void setText(final String str)
-  {
-    runOnUiThread(new Runnable()
-    {
-      @Override
-      public void run()
-      {
-        textView.setText(str);
-      }
-    });
   }
 
 }
