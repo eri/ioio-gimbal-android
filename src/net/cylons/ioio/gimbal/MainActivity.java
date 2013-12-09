@@ -18,6 +18,7 @@ import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import java.text.DecimalFormat;
 import net.cylons.ioio.gimbal.app.IOIOGimbalActivityAggregate;
+import org.codeandmagic.android.gauge.GaugeView;
 
 /**
  * The starting screen of the application.
@@ -48,7 +49,7 @@ public final class MainActivity
         throws ConnectionLostException
     {
       led = ioio_.openDigitalOutput(IOIO.LED_PIN, true);
-      analogInput = ioio_.openAnalogInput(40);
+      analogInput = ioio_.openAnalogInput(39);
       pitchServoOut = ioio_.openPwmOutput(new DigitalOutput.Spec(12, Mode.NORMAL), 100);
       rollServoOut = ioio_.openPwmOutput(new DigitalOutput.Spec(13, Mode.NORMAL), 100);
     }
@@ -73,6 +74,18 @@ public final class MainActivity
         {
           pitchTextView.setText(getString(R.string.degrees, decimalFormat.format(normalizedPitchDegree - 180f)));
           rollTextView.setText(getString(R.string.degrees, decimalFormat.format(normalizedRollDegree - 180f)));
+          try
+          {
+            final float alcoholValue = analogInput.read();
+            gaugeView.setTargetValue(alcoholValue * 100);
+          }
+          catch (Exception exception)
+          {
+            if (log.isErrorEnabled() == true)
+            {
+              log.error("Unable to read the analogue input !", exception);
+            }
+          }
         }
       });
 
@@ -82,6 +95,7 @@ public final class MainActivity
     @Override
     public void disconnected()
     {
+      analogInput.close();
     }
   }
 
@@ -92,6 +106,8 @@ public final class MainActivity
   private TextView pitchTextView;
 
   private TextView rollTextView;
+
+  private GaugeView gaugeView;
 
   private SensorManager sensorManager;
 
@@ -137,6 +153,7 @@ public final class MainActivity
     setContentView(R.layout.main);
     pitchTextView = (TextView) findViewById(R.id.pitchTextView);
     rollTextView = (TextView) findViewById(R.id.rollTextView);
+    gaugeView = (GaugeView) findViewById(R.id.gaugeView);
   }
 
   @Override

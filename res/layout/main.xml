@@ -21,4 +21,9 @@
     android:text="@string/degrees"
     android:textSize="90dip"
   />
+  <org.codeandmagic.android.gauge.GaugeView
+    android:id="@+id/gaugeView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+  />
 </LinearLayout>

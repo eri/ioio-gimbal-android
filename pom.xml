@@ -114,6 +114,12 @@
       <version>1.0</version>
       <type>apklib</type>
     </dependency>
+    <dependency>
+      <groupId>org.codeandmagic</groupId>
+      <artifactId>gauge</artifactId>
+      <version>1.0</version>
+      <type>apklib</type>
+    </dependency>
   </dependencies>
 
   <build>
